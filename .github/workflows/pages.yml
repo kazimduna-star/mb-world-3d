@@ -18,13 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,12 +27,7 @@ jobs:
       - name: Assemble game
         run: |
           mkdir -p site
-
-          rsync -a \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='*.zip' \
-            ./ site/
+          rsync -a --exclude='.git' --exclude='.github' --exclude='*.zip' ./ site/
 
           for z in MBW-*.zip; do
             if [ -f "$z" ]; then
@@ -54,12 +44,8 @@ jobs:
           done
 
           grep -v '  README.md$' checks.sha256 | sha256sum -c --quiet -
-          echo "Checksums OK"
-
           rm -f MANIFEST.txt checks.sha256 ИНСТРУКЦИЯ.txt
-
           test -f index.html
-          echo "Game files: $(find . -type f | wc -l)"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -67,6 +53,13 @@ jobs:
           name: github-pages
           path: site
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
