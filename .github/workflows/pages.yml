@@ -1,40 +1,70 @@
+
 name: Deploy MB WORLD 3D
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
   group: pages
   cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Assemble
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble game
         run: |
-          mkdir site
-          rsync -a --exclude='.git' --exclude='.github' --exclude='*.zip' ./ site/
+          mkdir -p site
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='*.zip' \
+            ./ site/
+
           for z in MBW-*.zip; do
-            if [ -f "$z" ]; then unzip -oq "$z" -d site; fi
+            if [ -f "$z" ]; then
+              unzip -oq "$z" -d site
+            fi
           done
+
           cd site
-          for f in $(find . -name '*.part01'); do b="${f%.part01}"; cat "$b".part* > "$b"; rm "$b".part*; done
+
+          for f in $(find . -name '*.part01'); do
+            b="${f%.part01}"
+            cat "$b".part* > "$b"
+            rm "$b".part*
+          done
+
           grep -v '  README.md$' checks.sha256 | sha256sum -c --quiet -
-          echo "checksums OK"
+          echo "Checksums OK"
+
           rm -f MANIFEST.txt checks.sha256 ИНСТРУКЦИЯ.txt
+
           test -f index.html
-          echo "files: $(find . -type f | wc -l)"
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+          echo "Game files: $(find . -type f | wc -l)"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - id: deployment
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
